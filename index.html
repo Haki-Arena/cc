@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Haki Arena — Character Creator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<div class="container">
+  <h1>⚔️ Haki Arena Character Creator</h1>
+
+  <div class="creator">
+
+    <div class="preview" id="character">
+      <div class="hair" id="hair"></div>
+      <div class="body" id="body"></div>
+      <div class="name" id="charName">Your Name</div>
+    </div>
+
+    <div class="controls">
+      <label>Name</label>
+      <input type="text" id="nameInput" placeholder="Enter name">
+
+      <label>Hair Color</label>
+      <input type="color" id="hairColor" value="#ffcc00">
+
+      <label>Outfit Color</label>
+      <input type="color" id="bodyColor" value="#3366ff">
+
+      <button id="downloadBtn">Download Character</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

@@ -69,59 +69,66 @@ async savePNG(){
     return;
   }
 
-  const oldMode = STATE.mode;
+  // NEW RULE: user must already be in preview mode
+  if(STATE.mode !== "preview"){
+    alert("Please switch to PREVIEW mode first, then press Save PNG.");
+    return;
+  }
 
   const safeName = ((STATE.character.name || "character").trim()
     .replace(/[\\/:*?"<>|]+/g, "_")
     .replace(/\s+/g, "-")
     .trim()) || "character";
 
-  // keep export stable (avoid freezes)
+  // A stable scale to avoid huge canvases/freezes
   const scale = Math.min(1.5, (window.devicePixelRatio || 1));
 
+  // Wait for layout to settle
   const wait2Frames = () => new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
 
   try{
-    // 1) Switch to preview and render
-    STATE.mode = "preview";
-    UI.render();
+    const previewRoot = document.getElementById("preview");
+    if(!previewRoot) throw new Error("Preview element not found.");
 
-    // 2) FORCE visibility (prevents “still in edit” exports)
-    const editorEl = document.getElementById("editor");
-    const previewEl = document.querySelector("#preview .preview-card") || document.getElementById("preview");
-    if(!previewEl) throw new Error("Preview element not found.");
-    if(editorEl) editorEl.classList.add("hidden");
-    previewEl.classList.remove("hidden");
+    // Capture EXACTLY the preview card (what you see), not the whole page
+    const target = previewRoot.querySelector(".preview-card") || previewRoot;
 
-    // 3) Wait for layout/fonts/images
+    // Ensure target is visible
+    const hidden = window.getComputedStyle(target).display === "none";
+    if(hidden){
+      alert("Preview is not visible. Please switch to PREVIEW mode.");
+      return;
+    }
+
+    // Let fonts/images load (prevents weird layout)
     await wait2Frames();
-    await new Promise(r=>setTimeout(r, 120)); // <- important for GitHub Pages timing
-
     if(document.fonts && document.fonts.ready){
       await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r,1500))]);
     }
 
-    const imgs = previewEl.querySelectorAll("img");
+    const imgs = target.querySelectorAll("img");
     await Promise.race([
       Promise.all([...imgs].map(img=>{
         if(img.complete) return Promise.resolve();
         return new Promise(res=>{ img.onload = img.onerror = res; });
       })),
-      new Promise(r=>setTimeout(r, 3000))
+      new Promise(r=>setTimeout(r, 4000))
     ]);
 
-    // 4) Capture ONLY the preview element (no popup, no editor)
-const canvas = await html2canvas(previewEl,{
-  backgroundColor:"#ffffff",
-  scale,
-  useCORS:false,
-  allowTaint:true,
-  logging:false
-});
+    // Screenshot ONLY the preview card, on white background (matches preview)
+    const canvas = await html2canvas(target,{
+      backgroundColor:"#ffffff",
+      scale,
+      useCORS:false,
+      allowTaint:true,
+      logging:false,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: document.documentElement.clientWidth,
+      windowHeight: document.documentElement.clientHeight
+    });
 
-
-
-    // watermark (optional)
+    // Optional watermark (remove if you don't want it)
     const ctx = canvas.getContext("2d");
     ctx.font = "16px Arial";
     ctx.fillStyle = "rgba(0,0,0,0.6)";
@@ -132,7 +139,7 @@ const canvas = await html2canvas(previewEl,{
       canvas.height-20
     );
 
-    // 5) Download
+    // Download via Blob (most reliable)
     const blob = await new Promise((resolve, reject)=>{
       canvas.toBlob(b=>{
         if(!b) reject(new Error("PNG export failed (toBlob returned null)."));
@@ -152,12 +159,9 @@ const canvas = await html2canvas(previewEl,{
   }catch(err){
     console.error("SavePNG failed:", err);
     alert("Save PNG failed.\n\n" + (err?.message || err));
-  }finally{
-    // restore previous mode
-    STATE.mode = oldMode;
-    UI.render();
   }
 },
+
 
 /* =========================
    SAVE PICTURES (MULTI PNG DOWNLOAD)
@@ -1214,6 +1218,7 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 
 
 

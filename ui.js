@@ -746,10 +746,7 @@ bctx.clearRect(0,0,big.width,big.height);
 bctx.drawImage(tmp,0,0);
 bctx.filter="none";
 
-// 3) sharpen (optional, reduced strength)
-if(hpToggle.checked){
-applySharpen(bctx, 0.35);
-}
+
 
 // 3.5) flip horizontal (optional)
 let bigToUse = big;
@@ -778,6 +775,19 @@ if(smoothToggle.checked){
   octx.clearRect(0,0,finalSize,finalSize);
   octx.drawImage(bigToUse, 0, 0, finalSize, finalSize);
 }
+   // FINAL STAGE sharpen (optional) — much cleaner at tiny sizes
+if(hpToggle.checked){
+  const fctx = finalCanvas.getContext("2d");
+
+  // tiny outputs need very light sharpening
+  const sharpenAmt =
+    finalSize <= 75 ? 0.10 :
+    finalSize <= 100 ? 0.14 :
+    0.18;
+
+  applySharpen(fctx, sharpenAmt);
+}
+
 
 // Copy into outCanvas
 outCanvas.width = finalSize;
@@ -1245,6 +1255,7 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 
 
 

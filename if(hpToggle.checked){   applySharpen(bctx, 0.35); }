@@ -363,7 +363,7 @@ modal.innerHTML=`
 
     <div class="ctrl">
       <div class="small" style="margin-bottom:6px;color:#666;">Live preview</div>
-      <canvas id="livePrev" width="150" height="150"
+      <canvas id="livePrev" width="${targetSize}" height="${targetSize}"
         style="width:150px;height:150px;border:1px solid #ccc;border-radius:8px;background:#fff;"></canvas>
     </div>
 
@@ -392,7 +392,7 @@ modal.innerHTML=`
     <div class="ctrl">
       <label>
         <span>Sharpen</span>
-        <input id="hpToggle" type="checkbox" checked>
+        <input id="hpToggle" type="checkbox">
       </label>
       <div class="small" style="color:#666;">If it looks crispy, disable Sharpen.</div>
     </div>
@@ -795,7 +795,7 @@ function scheduleLivePreview(){
 if(raf) return;
 raf = requestAnimationFrame(()=>{
 raf=0;
-renderOutputToCanvas(livePrev, 150);
+renderOutputToCanvas(livePrev, targetSize);
 });
 }
 
@@ -1245,6 +1245,7 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 
 
 

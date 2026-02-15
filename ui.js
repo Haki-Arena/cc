@@ -64,68 +64,100 @@ input.click();
 ========================= */
 
 async savePNG(){
-if(typeof html2canvas==="undefined"){
-alert("html2canvas not loaded");
-return;
-}
+  if(typeof html2canvas==="undefined"){
+    alert("html2canvas not loaded");
+    return;
+  }
 
-const dlWindow = window.open("", "_blank");
-if (dlWindow) {
-dlWindow.document.write("<p style='font-family:Arial'>Generating PNG...</p>");
-}
+  // Open synchronously from the click event (keeps popup allowed)
+  const dlWindow = window.open("", "_blank");
+  if (dlWindow) {
+    dlWindow.document.write("<p style='font-family:Arial'>Generating PNG...</p>");
+  }
 
-const oldMode = STATE.mode;
+  const oldMode = STATE.mode;
 
-try{
-STATE.mode="preview";
-this.render();
-await new Promise(r=>setTimeout(r,400));
+  // helper: timeout so it never hangs forever
+  const withTimeout = (promise, ms=25000) =>
+    Promise.race([
+      promise,
+      new Promise((_, rej)=>setTimeout(()=>rej(new Error("Timed out while generating PNG.")), ms))
+    ]);
 
-const preview = document.getElementById("preview");
-if(!preview) throw new Error("Preview element not found.");
+  try{
+    STATE.mode="preview";
+    this.render();
 
-const images = preview.querySelectorAll("img");
-await Promise.all([...images].map(img=>{
-if(img.complete) return Promise.resolve();
-return new Promise(res=>{ img.onload = img.onerror = res; });
-}));
+    // Wait for layout + fonts (important online)
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    if (document.fonts && document.fonts.ready) {
+      await withTimeout(document.fonts.ready, 8000);
+    }
 
-const canvas = await html2canvas(preview,{
-backgroundColor:"#ececec",
-scale:2,
-useCORS:true
-});
+    const preview = document.getElementById("preview");
+    if(!preview) throw new Error("Preview element not found.");
 
-const ctx=canvas.getContext("2d");
-ctx.font="16px Arial";
-ctx.fillStyle="rgba(0,0,0,0.6)";
-ctx.textAlign="center";
-ctx.fillText(
-"Made with Haki-Arena's Character Creator",
-canvas.width/2,
-canvas.height-20
-);
+    // Wait for images to load (also resolves on error)
+    const images = preview.querySelectorAll("img");
+    await withTimeout(Promise.all([...images].map(img=>{
+      if(img.complete) return Promise.resolve();
+      return new Promise(res=>{ img.onload = img.onerror = res; });
+    })), 10000);
 
-const dataUrl = canvas.toDataURL("image/png");
+    // Capture
+    const canvas = await withTimeout(html2canvas(preview,{
+      backgroundColor:"#ececec",
+      scale:2,
+      useCORS:true,
+      allowTaint:false
+    }), 25000);
 
-if (dlWindow){
-dlWindow.location.replace(dataUrl);
-} else {
-const link=document.createElement("a");
-link.download=(STATE.character.name||"character")+".png";
-link.href=dataUrl;
-link.click();
-}
+    // Watermark
+    const ctx=canvas.getContext("2d");
+    ctx.font="16px Arial";
+    ctx.fillStyle="rgba(0,0,0,0.6)";
+    ctx.textAlign="center";
+    ctx.fillText(
+      "Made with Haki-Arena's Character Creator",
+      canvas.width/2,
+      canvas.height-20
+    );
 
-}catch(err){
-console.error("SavePNG failed:", err);
-if (dlWindow) dlWindow.close();
-alert("Save PNG failed.\n\n" + (err?.message || err));
-}finally{
-STATE.mode=oldMode;
-this.render();
-}
+    // ✅ Use Blob instead of dataURL (much more reliable online)
+    const blob = await withTimeout(new Promise((resolve, reject)=>{
+      canvas.toBlob(b=>{
+        if(!b) reject(new Error("PNG export failed (toBlob returned null)."));
+        else resolve(b);
+      }, "image/png");
+    }), 10000);
+
+    const url = URL.createObjectURL(blob);
+
+    // Show in popup OR fallback download
+    if (dlWindow){
+      dlWindow.location.replace(url);
+      // Let the popup load it, then revoke later
+      setTimeout(()=>URL.revokeObjectURL(url), 15000);
+    } else {
+      const a=document.createElement("a");
+      a.href=url;
+      a.download=(STATE.character.name||"character")+".png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 15000);
+    }
+
+  }catch(err){
+    console.error("SavePNG failed:", err);
+    try{ dlWindow && dlWindow.close(); }catch{}
+    alert("Save PNG failed.\n\n" + (err?.message || err));
+  }finally{
+    STATE.mode=oldMode;
+    this.render();
+  }
 },
+
 
 /* =========================
    SAVE PICTURES (MULTI PNG DOWNLOAD)
@@ -1182,3 +1214,4 @@ ${s.description||"Skill Description"}
 }
 
 };
+

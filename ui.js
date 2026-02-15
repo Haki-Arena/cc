@@ -69,95 +69,106 @@ async savePNG(){
     return;
   }
 
-  // Open synchronously from the click event (keeps popup allowed)
-  const dlWindow = window.open("", "_blank");
-  if (dlWindow) {
-    dlWindow.document.write("<p style='font-family:Arial'>Generating PNG...</p>");
-  }
-
   const oldMode = STATE.mode;
 
-  // helper: timeout so it never hangs forever
-  const withTimeout = (promise, ms=25000) =>
-    Promise.race([
-      promise,
-      new Promise((_, rej)=>setTimeout(()=>rej(new Error("Timed out while generating PNG.")), ms))
-    ]);
+  // Choose a safer scale (prevents freezes on GH Pages)
+  const scale = Math.min(1.5, (window.devicePixelRatio || 1));
+
+  // Small helper
+  const wait2Frames = () => new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
 
   try{
     STATE.mode="preview";
     this.render();
 
-    // Wait for layout + fonts (important online)
-    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    await wait2Frames();
     if (document.fonts && document.fonts.ready) {
-      await withTimeout(document.fonts.ready, 8000);
+      // don't await forever
+      await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r, 1500))]);
     }
 
     const preview = document.getElementById("preview");
     if(!preview) throw new Error("Preview element not found.");
 
-    // Wait for images to load (also resolves on error)
-    const images = preview.querySelectorAll("img");
-    await withTimeout(Promise.all([...images].map(img=>{
-      if(img.complete) return Promise.resolve();
-      return new Promise(res=>{ img.onload = img.onerror = res; });
-    })), 10000);
+    // Wait for images
+    const imgs = preview.querySelectorAll("img");
+    await Promise.race([
+      Promise.all([...imgs].map(img=>{
+        if(img.complete) return Promise.resolve();
+        return new Promise(res=>{ img.onload = img.onerror = res; });
+      })),
+      new Promise(r=>setTimeout(r, 3000))
+    ]);
 
-    // Capture
-    const canvas = await withTimeout(html2canvas(preview,{
+    // Clone preview into a simple wrapper (reduces layout complexity)
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "fixed";
+    wrapper.style.left = "-100000px";
+    wrapper.style.top = "0";
+    wrapper.style.background = "#ececec";
+    wrapper.style.padding = "0";
+    wrapper.style.margin = "0";
+
+    const clone = preview.cloneNode(true);
+
+    // IMPORTANT: remove “hidden” just in case and make sure it has a size
+    clone.classList.remove("hidden");
+    clone.style.display = "block";
+
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    await wait2Frames();
+
+    // Render from the clone (much more stable)
+    const canvas = await html2canvas(clone,{
       backgroundColor:"#ececec",
-      scale:2,
-      useCORS:true,
-      allowTaint:false
-    }), 25000);
+      scale,
+      useCORS:false,        // ✅ more stable for Pages + local assets
+      allowTaint:true,      // ✅ don’t stall on CORS checks
+      logging:false,
+      removeContainer:true
+    });
 
     // Watermark
-    const ctx=canvas.getContext("2d");
-    ctx.font="16px Arial";
-    ctx.fillStyle="rgba(0,0,0,0.6)";
-    ctx.textAlign="center";
+    const ctx = canvas.getContext("2d");
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.textAlign = "center";
     ctx.fillText(
       "Made with Haki-Arena's Character Creator",
       canvas.width/2,
       canvas.height-20
     );
 
-    // ✅ Use Blob instead of dataURL (much more reliable online)
-    const blob = await withTimeout(new Promise((resolve, reject)=>{
+    // Cleanup clone wrapper early
+    wrapper.remove();
+
+    // Download via Blob (no popup)
+    const blob = await new Promise((resolve, reject)=>{
       canvas.toBlob(b=>{
         if(!b) reject(new Error("PNG export failed (toBlob returned null)."));
         else resolve(b);
       }, "image/png");
-    }), 10000);
+    });
 
     const url = URL.createObjectURL(blob);
-
-    // Show in popup OR fallback download
-    if (dlWindow){
-      dlWindow.location.replace(url);
-      // Let the popup load it, then revoke later
-      setTimeout(()=>URL.revokeObjectURL(url), 15000);
-    } else {
-      const a=document.createElement("a");
-      a.href=url;
-      a.download=(STATE.character.name||"character")+".png";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 15000);
-    }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (STATE.character.name || "character") + ".png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 15000);
 
   }catch(err){
     console.error("SavePNG failed:", err);
-    try{ dlWindow && dlWindow.close(); }catch{}
     alert("Save PNG failed.\n\n" + (err?.message || err));
   }finally{
-    STATE.mode=oldMode;
+    STATE.mode = oldMode;
     this.render();
   }
 },
-
 
 /* =========================
    SAVE PICTURES (MULTI PNG DOWNLOAD)
@@ -1214,4 +1225,5 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 

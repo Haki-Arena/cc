@@ -69,7 +69,7 @@ async savePNG(){
     return;
   }
 
-  // NEW RULE: user must already be in preview mode
+  // user must already be in preview
   if(STATE.mode !== "preview"){
     alert("Please switch to PREVIEW mode first, then press Save PNG.");
     return;
@@ -80,32 +80,55 @@ async savePNG(){
     .replace(/\s+/g, "-")
     .trim()) || "character";
 
-  // A stable scale to avoid huge canvases/freezes
+  const wait2Frames = () => new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+  // keep stable, avoid giant canvases
   const scale = Math.min(1.5, (window.devicePixelRatio || 1));
 
-  // Wait for layout to settle
-  const wait2Frames = () => new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
+  let exportStyleEl = null;
 
   try{
     const previewRoot = document.getElementById("preview");
     if(!previewRoot) throw new Error("Preview element not found.");
 
-    // Capture EXACTLY the preview card (what you see), not the whole page
     const target = previewRoot.querySelector(".preview-card") || previewRoot;
 
-    // Ensure target is visible
-    const hidden = window.getComputedStyle(target).display === "none";
-    if(hidden){
+    // Make sure preview is actually visible
+    if(window.getComputedStyle(previewRoot).display === "none"){
       alert("Preview is not visible. Please switch to PREVIEW mode.");
       return;
     }
 
-    // Let fonts/images load (prevents weird layout)
+    // ✅ TEMP CSS OVERRIDES (export only) to match your desired look
+    exportStyleEl = document.createElement("style");
+    exportStyleEl.id = "exportPngFix";
+    exportStyleEl.textContent = `
+      /* Force clean white export background */
+      body { background:#fff !important; }
+      #preview { background:#fff !important; }
+
+      /* Make the exported card solid white (no grey showing through) */
+      #preview .preview-card { background:#fff !important; box-shadow:none !important; }
+
+      /* Remove the “tile” look on exported skills */
+      #preview .preview-skill { 
+        background:transparent !important; 
+        box-shadow:none !important; 
+        border-radius:0 !important;
+      }
+
+      /* In case any wrappers add backgrounds */
+      #preview .preview-skills-grid { background:transparent !important; }
+    `;
+    document.head.appendChild(exportStyleEl);
+
+    // Let styles/fonts/layout settle
     await wait2Frames();
     if(document.fonts && document.fonts.ready){
       await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r,1500))]);
     }
 
+    // Wait for images
     const imgs = target.querySelectorAll("img");
     await Promise.race([
       Promise.all([...imgs].map(img=>{
@@ -115,20 +138,18 @@ async savePNG(){
       new Promise(r=>setTimeout(r, 4000))
     ]);
 
-    // Screenshot ONLY the preview card, on white background (matches preview)
+    await wait2Frames();
+
+    // Capture EXACTLY the preview card
     const canvas = await html2canvas(target,{
       backgroundColor:"#ffffff",
       scale,
       useCORS:false,
       allowTaint:true,
-      logging:false,
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: document.documentElement.clientWidth,
-      windowHeight: document.documentElement.clientHeight
+      logging:false
     });
 
-    // Optional watermark (remove if you don't want it)
+    // Optional watermark (remove if you want)
     const ctx = canvas.getContext("2d");
     ctx.font = "16px Arial";
     ctx.fillStyle = "rgba(0,0,0,0.6)";
@@ -139,7 +160,7 @@ async savePNG(){
       canvas.height-20
     );
 
-    // Download via Blob (most reliable)
+    // Download via blob
     const blob = await new Promise((resolve, reject)=>{
       canvas.toBlob(b=>{
         if(!b) reject(new Error("PNG export failed (toBlob returned null)."));
@@ -159,8 +180,14 @@ async savePNG(){
   }catch(err){
     console.error("SavePNG failed:", err);
     alert("Save PNG failed.\n\n" + (err?.message || err));
+  }finally{
+    // remove temporary export CSS
+    if(exportStyleEl){
+      exportStyleEl.remove();
+    }
   }
 },
+
 
 
 /* =========================
@@ -1218,6 +1245,7 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 
 
 

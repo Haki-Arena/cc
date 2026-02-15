@@ -71,26 +71,30 @@ async savePNG(){
 
   const oldMode = STATE.mode;
 
-  // Choose a safer scale (prevents freezes on GH Pages)
+  const safeName = ((STATE.character.name || "character").trim()
+    .replace(/[\\/:*?"<>|]+/g, "_")
+    .replace(/\s+/g, "-")
+    .trim()) || "character";
+
+  // Keep export stable (avoid freezes)
   const scale = Math.min(1.5, (window.devicePixelRatio || 1));
 
-  // Small helper
   const wait2Frames = () => new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
 
   try{
+    // 1) Switch to preview
     STATE.mode="preview";
-    this.render();
+    UI.render();
 
+    // 2) Let layout/fonts/images settle
     await wait2Frames();
-    if (document.fonts && document.fonts.ready) {
-      // don't await forever
-      await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r, 1500))]);
+    if(document.fonts && document.fonts.ready){
+      await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r,1500))]);
     }
 
     const preview = document.getElementById("preview");
     if(!preview) throw new Error("Preview element not found.");
 
-    // Wait for images
     const imgs = preview.querySelectorAll("img");
     await Promise.race([
       Promise.all([...imgs].map(img=>{
@@ -100,18 +104,14 @@ async savePNG(){
       new Promise(r=>setTimeout(r, 3000))
     ]);
 
-    // Clone preview into a simple wrapper (reduces layout complexity)
+    // 3) Screenshot the preview (clone into offscreen wrapper for stability)
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
     wrapper.style.left = "-100000px";
     wrapper.style.top = "0";
     wrapper.style.background = "#ececec";
-    wrapper.style.padding = "0";
-    wrapper.style.margin = "0";
 
     const clone = preview.cloneNode(true);
-
-    // IMPORTANT: remove “hidden” just in case and make sure it has a size
     clone.classList.remove("hidden");
     clone.style.display = "block";
 
@@ -120,17 +120,17 @@ async savePNG(){
 
     await wait2Frames();
 
-    // Render from the clone (much more stable)
     const canvas = await html2canvas(clone,{
       backgroundColor:"#ececec",
       scale,
-      useCORS:false,        // ✅ more stable for Pages + local assets
-      allowTaint:true,      // ✅ don’t stall on CORS checks
-      logging:false,
-      removeContainer:true
+      useCORS:false,
+      allowTaint:true,
+      logging:false
     });
 
-    // Watermark
+    wrapper.remove();
+
+    // watermark (optional)
     const ctx = canvas.getContext("2d");
     ctx.font = "16px Arial";
     ctx.fillStyle = "rgba(0,0,0,0.6)";
@@ -141,10 +141,7 @@ async savePNG(){
       canvas.height-20
     );
 
-    // Cleanup clone wrapper early
-    wrapper.remove();
-
-    // Download via Blob (no popup)
+    // 4) Auto-download
     const blob = await new Promise((resolve, reject)=>{
       canvas.toBlob(b=>{
         if(!b) reject(new Error("PNG export failed (toBlob returned null)."));
@@ -155,7 +152,7 @@ async savePNG(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = (STATE.character.name || "character") + ".png";
+    a.download = `${safeName}_character.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -165,10 +162,12 @@ async savePNG(){
     console.error("SavePNG failed:", err);
     alert("Save PNG failed.\n\n" + (err?.message || err));
   }finally{
+    // 5) Back to old mode
     STATE.mode = oldMode;
-    this.render();
+    UI.render();
   }
 },
+
 
 /* =========================
    SAVE PICTURES (MULTI PNG DOWNLOAD)
@@ -1225,5 +1224,6 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 
 

@@ -128,10 +128,6 @@ this.render();
 },
 
 /* =========================
-   SAVE PICTURES (ZIP)
-========================= */
-
-/* =========================
    SAVE PICTURES (MULTI PNG DOWNLOAD)
 ========================= */
 
@@ -178,12 +174,9 @@ async savePictures(){
     document.body.appendChild(a);
     a.click();
     a.remove();
-    // give the browser a moment before revoking
     setTimeout(()=>URL.revokeObjectURL(url), 1500);
   };
 
-  // Some browsers block multiple downloads unless user allows it.
-  // We'll space them slightly to reduce blocking.
   try{
     for(const it of items){
       const blob = await dataUrlToBlob(it.dataUrl);
@@ -196,8 +189,6 @@ async savePictures(){
     alert("Could not export pictures. Check console for details.");
   }
 },
-
-
 
 /* =========================
    FACE
@@ -298,10 +289,6 @@ return;
 const modal=document.createElement("div");
 modal.className="img-modal";
 
-/* =========================
-   MODAL HTML
-   (This is exactly where the new preview + HQ UI is added)
-========================= */
 modal.innerHTML=`
 <div class="img-modal-card">
   <div class="img-modal-left">
@@ -311,7 +298,6 @@ modal.innerHTML=`
   <div class="img-modal-right">
     <h3 class="img-modal-title">${title}</h3>
 
-    <!-- === LIVE PREVIEW + HQ UI (ADDED HERE) === -->
     <div class="ctrl">
       <div class="small" style="margin-bottom:6px;color:#666;">Live preview</div>
       <canvas id="livePrev" width="150" height="150"
@@ -324,11 +310,28 @@ modal.innerHTML=`
       <div class="small" style="color:#666;">Higher = sharper (slower). 6× default.</div>
     </div>
 
+    <!-- NEW: Smooth resize + Flip Horizontal -->
     <div class="ctrl">
       <label>
-        <span>High Pass (Sharpen)</span>
+        <span>Smooth resize (bicubic-like)</span>
+        <input id="smoothToggle" type="checkbox" checked>
+      </label>
+      <div class="small" style="color:#666;">Cleaner gradients when shrinking.</div>
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span>Flip Horizontal</span>
+        <input id="flipToggle" type="checkbox">
+      </label>
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span>Sharpen</span>
         <input id="hpToggle" type="checkbox" checked>
       </label>
+      <div class="small" style="color:#666;">If it looks crispy, disable Sharpen.</div>
     </div>
 
     <div class="ctrl">
@@ -402,7 +405,10 @@ if(ev.target===modal) cleanup();
 });
 
 const img=modal.querySelector("#imgEditSource");
+
 const hpToggle=modal.querySelector("#hpToggle");
+const smoothToggle=modal.querySelector("#smoothToggle");
+const flipToggle=modal.querySelector("#flipToggle");
 
 const hue=modal.querySelector("#hue");
 const sat=modal.querySelector("#sat");
@@ -461,6 +467,8 @@ if(!cropper) return;
 const data={
 crop:cropper.getData(true),
 hp:hpToggle.checked,
+smooth:smoothToggle.checked,
+flip:flipToggle.checked,
 h:hue.value,
 s:sat.value,
 b:bri.value,
@@ -480,7 +488,9 @@ function applyState(st){
 if(!cropper) return;
 
 cropper.setData(st.crop);
-hpToggle.checked=st.hp;
+hpToggle.checked=!!st.hp;
+smoothToggle.checked=!!st.smooth;
+flipToggle.checked=!!st.flip;
 
 hue.value=st.h;
 sat.value=st.s;
@@ -536,8 +546,8 @@ document.addEventListener("keydown", onKey);
    HQ pipeline helpers
 ========================= */
 
-// Fast sharpen kernel (HQ crisp at tiny sizes)
-function applySharpen(ctx, amount=0.65){
+// Fast sharpen kernel (reduced default amount later)
+function applySharpen(ctx, amount=0.35){
 const w=ctx.canvas.width;
 const h=ctx.canvas.height;
 const imgData=ctx.getImageData(0,0,w,h);
@@ -577,6 +587,69 @@ imgData.data.set(out);
 ctx.putImageData(imgData,0,0);
 }
 
+// Bicubic-like downscale (Hermite filter). Better gradients on shrink.
+function resizeHermite(srcCanvas, dstW, dstH){
+  const srcCtx = srcCanvas.getContext("2d");
+  const srcW = srcCanvas.width, srcH = srcCanvas.height;
+
+  const srcImg = srcCtx.getImageData(0,0,srcW,srcH);
+  const srcData = srcImg.data;
+
+  const dstCanvas = document.createElement("canvas");
+  dstCanvas.width = dstW;
+  dstCanvas.height = dstH;
+  const dstCtx = dstCanvas.getContext("2d");
+  const dstImg = dstCtx.createImageData(dstW, dstH);
+  const dstData = dstImg.data;
+
+  const ratioW = srcW / dstW;
+  const ratioH = srcH / dstH;
+  const ratioWHalf = Math.ceil(ratioW / 2);
+  const ratioHHalf = Math.ceil(ratioH / 2);
+
+  for(let j=0; j<dstH; j++){
+    for(let i=0; i<dstW; i++){
+      const x2 = (i + j*dstW) * 4;
+      let weights = 0;
+      let r=0, g=0, b=0, a=0;
+
+      const centerY = (j + 0.5) * ratioH;
+      const yyStart = Math.floor(j * ratioH);
+      const yyEnd = Math.ceil((j+1) * ratioH);
+
+      for(let yy=yyStart; yy<yyEnd; yy++){
+        const dy = Math.abs(centerY - (yy + 0.5)) / ratioHHalf;
+        const centerX = (i + 0.5) * ratioW;
+        const xxStart = Math.floor(i * ratioW);
+        const xxEnd = Math.ceil((i+1) * ratioW);
+
+        for(let xx=xxStart; xx<xxEnd; xx++){
+          const dx = Math.abs(centerX - (xx + 0.5)) / ratioWHalf;
+          const w = Math.sqrt(dx*dx + dy*dy);
+
+          if(w >= 1) continue;
+          const weight = 2*w*w*w - 3*w*w + 1; // Hermite
+
+          const pos = (4 * (xx + yy * srcW));
+          a += weight * srcData[pos + 3];
+          r += weight * srcData[pos];
+          g += weight * srcData[pos + 1];
+          b += weight * srcData[pos + 2];
+          weights += weight;
+        }
+      }
+
+      dstData[x2]     = r / weights;
+      dstData[x2 + 1] = g / weights;
+      dstData[x2 + 2] = b / weights;
+      dstData[x2 + 3] = a / weights;
+    }
+  }
+
+  dstCtx.putImageData(dstImg, 0, 0);
+  return dstCanvas;
+}
+
 function renderOutputToCanvas(outCanvas, finalSize){
 if(!cropper) return;
 
@@ -610,19 +683,44 @@ bctx.clearRect(0,0,big.width,big.height);
 bctx.drawImage(tmp,0,0);
 bctx.filter="none";
 
-// 3) sharpen (optional)
+// 3) sharpen (optional, reduced strength)
 if(hpToggle.checked){
-applySharpen(bctx, 0.65);
+applySharpen(bctx, 0.35);
 }
 
-// 4) downscale to final
+// 3.5) flip horizontal (optional)
+let bigToUse = big;
+if(flipToggle.checked){
+  const flipped = document.createElement("canvas");
+  flipped.width = big.width;
+  flipped.height = big.height;
+  const fctx = flipped.getContext("2d");
+  fctx.translate(flipped.width, 0);
+  fctx.scale(-1, 1);
+  fctx.drawImage(big, 0, 0);
+  bigToUse = flipped;
+}
+
+// 4) downscale to final (smooth bicubic-like OR normal)
+let finalCanvas;
+if(smoothToggle.checked){
+  finalCanvas = resizeHermite(bigToUse, finalSize, finalSize);
+} else {
+  finalCanvas = document.createElement("canvas");
+  finalCanvas.width = finalSize;
+  finalCanvas.height = finalSize;
+  const octx = finalCanvas.getContext("2d");
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = "high";
+  octx.clearRect(0,0,finalSize,finalSize);
+  octx.drawImage(bigToUse, 0, 0, finalSize, finalSize);
+}
+
+// Copy into outCanvas
 outCanvas.width = finalSize;
 outCanvas.height = finalSize;
-const octx = outCanvas.getContext("2d");
-octx.imageSmoothingEnabled = true;
-octx.imageSmoothingQuality = "high";
-octx.clearRect(0,0,finalSize,finalSize);
-octx.drawImage(big, 0, 0, finalSize, finalSize);
+outCanvas.getContext("2d").clearRect(0,0,finalSize,finalSize);
+outCanvas.getContext("2d").drawImage(finalCanvas, 0, 0);
 }
 
 /* =========================
@@ -666,8 +764,16 @@ scheduleLivePreview();
 });
 });
 
-// Toggle sharpen
+// Toggle sharpen / smooth / flip: snapshot + preview
 hpToggle.addEventListener("change", ()=>{
+snapshot();
+scheduleLivePreview();
+});
+smoothToggle.addEventListener("change", ()=>{
+snapshot();
+scheduleLivePreview();
+});
+flipToggle.addEventListener("change", ()=>{
 snapshot();
 scheduleLivePreview();
 });
@@ -714,6 +820,9 @@ if(!cropper) return;
 cropper.reset();
 
 hpToggle.checked=true;
+smoothToggle.checked=true;
+flipToggle.checked=false;
+
 hue.value=0; sat.value=100; bri.value=100; con.value=100;
 hq.value=6;
 
@@ -879,7 +988,6 @@ dropSkill(e, dropIndex){
   UI.render();
 },
 
-
 renderSkills(){
 
   const wrap = document.getElementById("skills");
@@ -986,8 +1094,6 @@ renderSkills(){
     wrap.appendChild(div);
   });
 },
-
-
 
 energyUI(i,editable=false){
 const colors=["#16be48","#eb000b","#e8dc00","#0bb6ff","#1f1f1f"];

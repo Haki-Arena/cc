@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Haki Arena Character Creator</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
+
+</head>
+
+<body>
+
+<div class="layout">
+
+<!-- LEFT MENU -->
+<div class="menu">
+<img src="logo.png" class="menu-logo">
+
+
+<button class="primary" onclick="UI.toggleMode()">Preview / Edit</button>
+<button class="secondary" onclick="UI.addSkill()">Add Skill</button>
+<button class="secondary" onclick="UI.toggleBorders()">Toggle Borders</button>
+
+<hr>
+
+<button class="primary" onclick="UI.saveScheme()">Save Character</button>
+<button class="secondary" onclick="UI.loadScheme()">Load Character</button>
+<button class="primary" onclick="UI.savePNG()">Save PNG</button>
+<button class="primary" onclick="UI.savePictures()">Save Pictures</button>
+</div>
+
+<!-- MAIN -->
+<div class="workspace">
+
+<div class="workspace-inner">
+
+<div class="editor-area">
+<div id="editor"></div>
+<div id="preview" class="hidden"></div>
+</div>
+
+<div class="side-panel"></div>
+
+</div>
+
+</div>
+
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="state.js"></script>
+<script src="ui.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

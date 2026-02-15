@@ -1,0 +1,647 @@
+/* =====================================================
+   GLOBAL
+===================================================== */
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#ececec;
+
+-webkit-font-smoothing:antialiased;
+-moz-osx-font-smoothing:grayscale;
+text-rendering:optimizeLegibility;
+}
+
+/* =====================================================
+   LAYOUT
+===================================================== */
+
+.layout{
+display:flex;
+height:100vh;
+}
+
+.menu{
+width:400px;
+background:#f7f7f7;
+padding:15px;
+border-right:1px solid #d0d0d0;
+flex-shrink:0;
+}
+
+.workspace{
+flex:1;
+overflow:auto;
+padding:25px;
+}
+
+/* =====================================================
+   CARD
+===================================================== */
+
+.card{
+background:white;
+border-radius:6px;
+box-shadow:0 2px 6px rgba(0,0,0,0.15);
+padding:15px;
+margin-bottom:20px;
+}
+
+/* =====================================================
+   CHARACTER (EDITOR)
+===================================================== */
+
+.char-title{
+display:flex;
+align-items:center;
+gap:6px;
+justify-content:space-between;
+font-weight:bold;
+color:#0d5c41;
+border-bottom:1px dashed #bbb;
+padding-bottom:6px;
+margin-bottom:10px;
+}
+
+.char-name{
+font-weight:bold;
+color:#0d5c41;
+font-size:20px;
+border:none;
+outline:none;
+}
+
+.char-main{
+display:flex;
+gap:14px;
+}
+
+.char-desc{
+flex:1;
+}
+
+.char-desc textarea{
+width:100%;
+height:130px;
+resize:vertical;
+}
+
+.face-pic{
+background:#ddd;
+display:flex;
+align-items:center;
+justify-content:center;
+cursor:pointer;
+position:relative;
+}
+
+.upload-overlay{
+width:22px;
+opacity:.85;
+}
+
+/* =====================================================
+   SKILLS (EDITOR)
+===================================================== */
+
+.skills-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:20px;
+}
+
+.skill{
+background:white;
+border-radius:6px;
+box-shadow:0 2px 6px rgba(0,0,0,0.15);
+padding:12px;
+}
+
+.skill-header{
+margin-bottom:6px;
+}
+
+.skill-name{
+font-weight:bold;
+color:#1f2a44;
+}
+
+.skill-desc{
+display:flex;
+gap:10px;
+margin-top:6px;
+}
+
+.skill-img{
+width:75px;
+height:75px;
+background:#ddd;
+display:flex;
+align-items:center;
+justify-content:center;
+cursor:pointer;
+flex-shrink:0;
+}
+
+.skill textarea{
+width:100%;
+height:120px;
+resize:vertical;
+}
+
+.skill-footer{
+display:flex;
+justify-content:space-between;
+margin-top:10px;
+font-size:12px;
+}
+
+.small{
+font-size:12px;
+}
+
+/* =====================================================
+   ENERGY SYSTEM
+===================================================== */
+
+.energy{
+width:12px;
+height:12px;
+border:1px solid black;
+display:inline-block;
+margin-right:3px;
+}
+
+.energy-menu{
+position:absolute;
+background:white;
+border:1px solid #aaa;
+padding:6px;
+box-shadow:0 2px 6px rgba(0,0,0,.2);
+z-index:999;
+}
+
+.energy-row{
+display:flex;
+align-items:center;
+gap:8px;
+margin:4px 0;
+}
+
+/* =====================================================
+   PREVIEW MODE
+===================================================== */
+
+.hidden{
+display:none;
+}
+
+.preview-card{
+-webkit-font-smoothing:antialiased;
+-moz-osx-font-smoothing:grayscale;
+text-rendering:optimizeLegibility;
+}
+
+/* ---------- TITLE ---------- */
+
+.preview-title{
+display:flex;
+align-items:center;
+gap:6px;
+margin-bottom:6px;
+}
+
+.preview-icon-hq{
+image-rendering:-webkit-optimize-contrast;
+image-rendering:crisp-edges;
+transform:translate(-1px,2px);
+}
+
+.char-preview-name{
+  font-size:18px;
+  font-weight:bold;
+  color:#0d5c41;
+  margin:0;
+  position:relative;
+  top:4px;      /* move down */
+  left:-4px;    /* move left */
+}
+
+
+/* ---------- MAIN ---------- */
+
+.preview-main{
+display:flex;
+align-items:flex-start;
+gap:14px;
+margin-bottom:10px;
+}
+
+.preview-face{
+object-fit:cover;
+}
+
+.preview-desc{
+flex:1;
+white-space:pre-wrap;
+font-size:13px;
+line-height:1.35;
+margin-top:0;
+}
+
+.preview-req{
+font-size:12px;
+margin-top:6px;
+}
+
+.preview-mission{
+text-decoration:underline;
+}
+
+/* =====================================================
+   PREVIEW SKILLS
+===================================================== */
+
+.preview-skills-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:18px 30px;
+margin-top:14px;
+}
+
+.preview-skill{
+position:relative;
+padding-top:6px;
+min-height:120px;
+background:#fff;
+border-radius:6px;
+padding:8px;
+}
+
+.preview-skill-row{
+display:flex;
+gap:14px;
+align-items:flex-start;
+}
+
+.preview-skill-img{
+width:75px;
+height:75px;
+object-fit:cover;
+background:#ddd;
+flex-shrink:0;
+}
+
+.preview-skill-content{
+flex:1;
+font-size:13px;
+line-height:1.35;
+}
+
+.skill-preview-name{
+color:#1f2a44;
+font-weight:bold;
+margin-bottom:4px;
+}
+
+.preview-classes{
+color:#777;
+}
+
+/* =====================================================
+   COST — TRUE BOTTOM RIGHT
+===================================================== */
+
+.preview-cost{
+position:absolute;
+right:8px;
+bottom:8px;
+font-size:12px;
+display:flex;
+align-items:center;
+gap:4px;
+}
+
+.preview-cost .energy{
+position:relative;
+top:2px;
+}
+
+/* =====================================================
+   BORDER TOGGLE (EDIT + PREVIEW)
+===================================================== */
+
+.show-borders .face-pic,
+.show-borders .skill-img,
+.show-borders .preview-face,
+.show-borders .preview-skill-img{
+outline:1px solid black;
+}
+
+/* =====================================================
+   PREVIEW DIVIDERS (FIXED SPACING)
+===================================================== */
+
+.preview-divider{
+border-bottom:1px dashed #bdbdbd;
+padding-bottom:4px;   /* reduced */
+margin-bottom:4px;    /* reduced */
+}
+
+/* =====================================================
+   SKILL INTERNAL LAYOUT
+===================================================== */
+
+.preview-skill-stats{
+display:flex;
+justify-content:space-between;
+align-items:flex-start;
+margin-top:6px;
+}
+
+.preview-left{
+line-height:1.4;
+}
+
+.preview-right{
+display:flex;
+align-items:center;
+gap:4px;
+text-align:right;
+}
+
+/* =========================
+   EDITOR WIDTH LIMIT
+========================= */
+
+.workspace-inner{
+display:flex;
+gap:20px;
+align-items:flex-start;
+}
+
+.editor-area{
+width:800px;
+flex-shrink:0;
+}
+
+.side-panel{
+flex:1;
+min-height:100%;
+background:#f3f3f3;
+border-left:1px solid #dcdcdc;
+border-radius:6px;
+}
+
+.face-toggle{
+background:#16be48;
+color:white;
+border:none;
+border-radius:4px;
+padding:4px 8px;
+font-size:12px;
+cursor:pointer;
+font-weight:bold;
+margin-left:auto;
+}
+
+.face-toggle:hover{
+filter:brightness(1.1);
+}
+
+.char-name {
+  caret-color: transparent;
+}
+
+/* =========================
+   IMAGE EDITOR MODAL
+========================= */
+
+.img-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+}
+
+.img-modal-card{
+  width:min(1100px, 92vw);
+  height:min(720px, 90vh);
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  display:flex;
+  overflow:hidden;
+}
+
+.img-modal-left{
+  flex:1;
+  background:#111;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px;
+}
+
+.img-modal-left img{
+  max-width:100%;
+  max-height:100%;
+  display:block;
+}
+
+.img-modal-right{
+  width:340px;
+  background:#f6f6f6;
+  border-left:1px solid #ddd;
+  padding:14px;
+  overflow:auto;
+}
+
+.img-modal-title{
+  font-weight:bold;
+  margin:0 0 10px 0;
+  color:#0d5c41;
+}
+
+.ctrl{
+  margin:10px 0;
+  font-size:13px;
+}
+
+.ctrl label{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:6px;
+}
+
+.ctrl input[type="range"]{
+  width:100%;
+}
+
+.ctrl-row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.ctrl-row button{
+  padding:8px 10px;
+  border:1px solid #bbb;
+  background:#fff;
+  cursor:pointer;
+  border-radius:6px;
+  font-weight:bold;
+  font-size:12px;
+}
+
+.ctrl-row button.primary{
+  background:#16be48;
+  color:#fff;
+  border:none;
+}
+
+.ctrl-row button.danger{
+  background:#eb000b;
+  color:#fff;
+  border:none;
+}
+
+.ctrl-row button:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+
+/* =========================
+   MENU REDESIGN
+========================= */
+
+.menu {
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.menu-logo {
+  width:240px;          /* same size as before */
+  height:auto;
+  display:block;
+  margin:0 auto 18px auto;   /* center only the logo */
+}
+
+.menu h2 {
+  margin-bottom:10px;
+  font-size:20px;
+  color:#0d5c41;
+}
+
+/* Base button style */
+.menu button {
+  width:100%;
+  padding:14px 16px;
+  font-size:14px;
+  font-weight:bold;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+  transition:all .18s ease;
+  letter-spacing:.4px;
+}
+
+/* Primary action buttons */
+.menu button.primary {
+  background:#16be48;
+  color:white;
+  box-shadow:0 4px 10px rgba(22,190,72,.25);
+}
+
+.menu button.primary:hover {
+  transform:translateY(-2px);
+  box-shadow:0 6px 14px rgba(22,190,72,.35);
+}
+
+/* Secondary buttons */
+.menu button.secondary {
+  background:#ffffff;
+  border:1px solid #dcdcdc;
+  color:#1f2a44;
+}
+
+.menu button.secondary:hover {
+  background:#f4f4f4;
+  transform:translateY(-1px);
+}
+
+/* Divider spacing */
+.menu hr {
+  margin:14px 0;
+  border:none;
+  border-top:1px solid #e3e3e3;
+}
+
+/* =========================
+   HAKI ARENA MENU BUTTONS
+========================= */
+
+.menu {
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+/* Base button */
+.menu button {
+  width:100%;
+  padding:14px 16px;
+  font-size:14px;
+  font-weight:bold;
+  border-radius:12px;
+  border:none;
+  cursor:pointer;
+  letter-spacing:.5px;
+  transition:all .18s ease;
+  position:relative;
+  overflow:hidden;
+}
+
+/* PRIMARY BUTTONS (Gradient like logo) */
+.menu button.primary {
+  background:linear-gradient(90deg, #6cd713, #00b1ff);
+  color:#ffffff;
+  box-shadow:0 4px 14px rgba(0,177,255,0.25);
+}
+
+.menu button.primary:hover {
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(0,177,255,0.35);
+}
+
+.menu button.primary:active {
+  transform:translateY(0px);
+  box-shadow:0 4px 10px rgba(0,177,255,0.25);
+}
+
+/* SECONDARY BUTTONS */
+.menu button.secondary {
+  background:#ffffff;
+  border:2px solid #00b1ff;
+  color:#00b1ff;
+}
+
+.menu button.secondary:hover {
+  background:#00b1ff;
+  color:#ffffff;
+  transform:translateY(-2px);
+}
+
+/* Divider */
+.menu hr {
+  margin:16px 0;
+  border:none;
+  border-top:1px solid #e5e5e5;
+}
+

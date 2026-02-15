@@ -62,7 +62,7 @@ input.click();
 /* =========================
    SAVE PNG
 ========================= */
-
+   
 async savePNG(){
   if(typeof html2canvas==="undefined"){
     alert("html2canvas not loaded");
@@ -76,26 +76,32 @@ async savePNG(){
     .replace(/\s+/g, "-")
     .trim()) || "character";
 
-  // Keep export stable (avoid freezes)
+  // keep export stable (avoid freezes)
   const scale = Math.min(1.5, (window.devicePixelRatio || 1));
 
   const wait2Frames = () => new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
 
   try{
-    // 1) Switch to preview
-    STATE.mode="preview";
+    // 1) Switch to preview and render
+    STATE.mode = "preview";
     UI.render();
 
-    // 2) Let layout/fonts/images settle
+    // 2) FORCE visibility (prevents “still in edit” exports)
+    const editorEl = document.getElementById("editor");
+    const previewEl = document.getElementById("preview");
+    if(!previewEl) throw new Error("Preview element not found.");
+    if(editorEl) editorEl.classList.add("hidden");
+    previewEl.classList.remove("hidden");
+
+    // 3) Wait for layout/fonts/images
     await wait2Frames();
+    await new Promise(r=>setTimeout(r, 120)); // <- important for GitHub Pages timing
+
     if(document.fonts && document.fonts.ready){
       await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r,1500))]);
     }
 
-    const preview = document.getElementById("preview");
-    if(!preview) throw new Error("Preview element not found.");
-
-    const imgs = preview.querySelectorAll("img");
+    const imgs = previewEl.querySelectorAll("img");
     await Promise.race([
       Promise.all([...imgs].map(img=>{
         if(img.complete) return Promise.resolve();
@@ -104,31 +110,14 @@ async savePNG(){
       new Promise(r=>setTimeout(r, 3000))
     ]);
 
-    // 3) Screenshot the preview (clone into offscreen wrapper for stability)
-    const wrapper = document.createElement("div");
-    wrapper.style.position = "fixed";
-    wrapper.style.left = "-100000px";
-    wrapper.style.top = "0";
-    wrapper.style.background = "#ececec";
-
-    const clone = preview.cloneNode(true);
-    clone.classList.remove("hidden");
-    clone.style.display = "block";
-
-    wrapper.appendChild(clone);
-    document.body.appendChild(wrapper);
-
-    await wait2Frames();
-
-    const canvas = await html2canvas(clone,{
+    // 4) Capture ONLY the preview element (no popup, no editor)
+    const canvas = await html2canvas(previewEl,{
       backgroundColor:"#ececec",
       scale,
       useCORS:false,
       allowTaint:true,
       logging:false
     });
-
-    wrapper.remove();
 
     // watermark (optional)
     const ctx = canvas.getContext("2d");
@@ -141,7 +130,7 @@ async savePNG(){
       canvas.height-20
     );
 
-    // 4) Auto-download
+    // 5) Download
     const blob = await new Promise((resolve, reject)=>{
       canvas.toBlob(b=>{
         if(!b) reject(new Error("PNG export failed (toBlob returned null)."));
@@ -162,12 +151,11 @@ async savePNG(){
     console.error("SavePNG failed:", err);
     alert("Save PNG failed.\n\n" + (err?.message || err));
   }finally{
-    // 5) Back to old mode
+    // restore previous mode
     STATE.mode = oldMode;
     UI.render();
   }
 },
-
 
 /* =========================
    SAVE PICTURES (MULTI PNG DOWNLOAD)
@@ -1224,6 +1212,7 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 
 
 

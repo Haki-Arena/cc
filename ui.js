@@ -88,7 +88,7 @@ async savePNG(){
 
     // 2) FORCE visibility (prevents “still in edit” exports)
     const editorEl = document.getElementById("editor");
-    const previewEl = document.getElementById("preview");
+    const previewEl = document.querySelector("#preview .preview-card") || document.getElementById("preview");
     if(!previewEl) throw new Error("Preview element not found.");
     if(editorEl) editorEl.classList.add("hidden");
     previewEl.classList.remove("hidden");
@@ -111,13 +111,15 @@ async savePNG(){
     ]);
 
     // 4) Capture ONLY the preview element (no popup, no editor)
-    const canvas = await html2canvas(previewEl,{
-      backgroundColor:"#ececec",
-      scale,
-      useCORS:false,
-      allowTaint:true,
-      logging:false
-    });
+const canvas = await html2canvas(previewEl,{
+  backgroundColor:"#ffffff",
+  scale,
+  useCORS:false,
+  allowTaint:true,
+  logging:false
+});
+
+
 
     // watermark (optional)
     const ctx = canvas.getContext("2d");
@@ -1212,6 +1214,7 @@ ${s.description||"Skill Description"}
 }
 
 };
+
 
 
 
